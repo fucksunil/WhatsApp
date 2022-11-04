@@ -4,6 +4,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
 
 
+<<<<<<< HEAD
 const Message = ({ message }) => {
     const isMyMessage = () => {
         return message.user.id === 'u1'
@@ -40,6 +41,35 @@ const styles = StyleSheet.create({
         elevation: 1,
     },
     time: {
+=======
+const Message = ({message}) => {
+    const isMyMessage = () => {
+        return message.user.id === 'u1'
+    }
+  return (
+    <View style={[
+        styles.container, 
+    {
+        backgroundColor: isMyMessage() ? '#DCF8C5': 'white',
+        alignSelf: isMyMessage() ? 'flex-end': 'flex-start',
+    },
+    
+    ]}>
+      <Text>{message.text}</Text>
+      <Text style={styles.time}>{dayjs(message.createdAt).fromNow(true)}</Text>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+    container:{
+        margin: 5,
+        padding: 10,
+        borderRadius: 10,
+        maxWidth: '80%'
+    },
+    time:{
+>>>>>>> 3d5e5fd84a3fcfa4b005602ad03be81d6d0a83f7
         color: 'gray',
         alignSelf: 'flex-end'
     }
