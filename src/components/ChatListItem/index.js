@@ -1,6 +1,7 @@
 import { Text, View, Image, StyleSheet, Pressable } from 'react-native';
 import { useEffect, useState } from "react";
 import { Auth, API, graphqlOperation } from "aws-amplify";
+import {onUpdateChatRoom} from '../../graphql/subscriptions'
 
 import { useNavigation } from '@react-navigation/native';
 
@@ -11,14 +12,14 @@ dayjs.extend(relativeTime);
 const ChatListItem = ({ chat }) => {
     const navigation = useNavigation();
     const [user, setUser] = useState(null);
-    // const [chatRoom, setChatRoom] = useState(chat);
+    const [chatRoom, setChatRoom] = useState(chat);
 
     useEffect(() => {
         const fetchUser = async () => {
             const authUser = await Auth.currentAuthenticatedUser();
 
             // Loop through chat.users.items and find a user that is not us (Authenticated user)
-            const userItem = chat.users.items.find(
+            const userItem = chatRoom.users.items.find(
                 (item) => item.user.id !== authUser.attributes.sub
             );
             setUser(userItem?.user);
@@ -27,10 +28,27 @@ const ChatListItem = ({ chat }) => {
         fetchUser();
     }, []);
 
-    console.log(chat);
+
+     // fetch Chat Room
+     useEffect(() => {
+        const subscription = API.graphql(
+            graphqlOperation(onUpdateChatRoom, { filter: { id: { eq: chat.id } } })
+        ).subscribe({
+            next: ({ value }) => {
+                setChatRoom((cr) => ({
+                    ...(cr || {}),
+                    ...value.data.onUpdateChatRoom,
+                }));
+            },
+            error: (error) => console.warn(error),
+        });
+
+        return ()=>{subscription.unsubscribe()};
+    }, [chat.id]);
+
 
     return (
-        <Pressable onPress={() => navigation.navigate('Chat', { id: chat.id, name: user?.name })} style={styles.container}>
+        <Pressable onPress={() => navigation.navigate('Chat', { id: chatRoom.id, name: user?.name })} style={styles.container}>
             <Image
                 source={{ uri: user?.image }}
                 style={styles.image}
@@ -38,13 +56,13 @@ const ChatListItem = ({ chat }) => {
             <View style={styles.content}>
                 <View style={styles.row}>
                     <Text numberOfLines={1} style={styles.name}>{user?.name}</Text>
-                    {chat.LastMessage && (
+                    {chatRoom.LastMessage && (
                         <Text style={styles.subTitle}>
-                            {dayjs(chat.LastMessage?.createdAt).fromNow(true)}
+                            {dayjs(chatRoom.LastMessage?.createdAt).fromNow(true)}
                         </Text>
                     )}
                 </View>
-                <Text numberOfLines={2} style={styles.subTitle}>{chat.LastMessage?.text} </Text>
+                <Text numberOfLines={2} style={styles.subTitle}>{chatRoom.LastMessage?.text} </Text>
             </View>
         </Pressable>
     )

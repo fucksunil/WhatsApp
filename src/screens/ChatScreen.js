@@ -6,8 +6,9 @@ import InputBox from '../components/InputBox';
 
 import bg from "../../assets/images/BG.png";
 import messages from '../../assets/data/messages.json';
-import {API, graphqlOperation} from 'aws-amplify';
-import {getChatRoom, listMessagesByChatRoom} from '../graphql/queries'
+import { API, graphqlOperation } from 'aws-amplify';
+import { getChatRoom, listMessagesByChatRoom } from '../graphql/queries'
+import { onCreateMessage, onUpdateChatRoom } from '../graphql/subscriptions'
 
 const ChatScreen = () => {
     const [chatRoom, setChatRoom] = useState(null);
@@ -20,33 +21,61 @@ const ChatScreen = () => {
 
 
     // fetch Chat Room
-    useEffect(()=>{
-        API.graphql(graphqlOperation(getChatRoom, {id: chatroomID})).then(
+    useEffect(() => {
+        API.graphql(graphqlOperation(getChatRoom, { id: chatroomID })).then(
             (result) => setChatRoom(result.data?.getChatRoom)
         );
+
+        const subscription = API.graphql(
+            graphqlOperation(onUpdateChatRoom, { filter: { id: { eq: chatroomID } } })
+        ).subscribe({
+            next: ({ value }) => {
+                setChatRoom((cr) => ({
+                    ...(cr || {}),
+                    ...value.data.onUpdateChatRoom,
+                }));
+            },
+            error: (error) => console.warn(error),
+        });
+
+        return ()=>{subscription.unsubscribe()};
+
     }, [chatroomID]);
 
     // fetch Messages
     useEffect(() => {
         API.graphql(
             graphqlOperation(listMessagesByChatRoom, {
-              chatroomID,
-              sortDirection: "DESC",
+                chatroomID,
+                sortDirection: "DESC",
             })
-          ).then((result) => {
+        ).then((result) => {
             setMessages(result.data?.listMessagesByChatRoom?.items);
-          });
+        });
+
+        // Subscribe to new message
+        const subscription = API.graphql(
+            graphqlOperation(onCreateMessage, {
+                filter: { chatroomID: { eq: chatroomID } },
+            })
+        ).subscribe({
+            next: ({ value }) => {
+                setMessages((m) => [value.data.onCreateMessage, ...m])
+            },
+            error: (err) => console.log(err),
+        })
+        return () => subscription.unsubscribe();
     }, [chatroomID])
 
 
-    
+
 
     useEffect(() => {
-        navigation.setOptions({title: route.params.name});
+        navigation.setOptions({ title: route.params.name });
     }, [route.params.name])
 
-    if(!chatRoom){
-        return <ActivityIndicator/>
+    if (!chatRoom) {
+        return <ActivityIndicator />
     }
 
     // console.log(chatRoom.Messages.items);
@@ -64,7 +93,7 @@ const ChatScreen = () => {
                     style={styles.list}
                     inverted
                 />
-                <InputBox chatroom={chatRoom}/>
+                <InputBox chatroom={chatRoom} />
 
             </ImageBackground>
         </KeyboardAvoidingView>
@@ -73,7 +102,7 @@ const ChatScreen = () => {
 
 const styles = StyleSheet.create({
     bg: {
-        flex:1
+        flex: 1
 
     },
     list: {
