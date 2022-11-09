@@ -1,4 +1,6 @@
 import { Text, View, Image, StyleSheet, Pressable } from 'react-native';
+import { useEffect, useState } from "react";
+import { Auth, API, graphqlOperation } from "aws-amplify";
 
 import { useNavigation } from '@react-navigation/native';
 
@@ -6,28 +8,50 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
 
-const ChatListItem = ({chat}) => {
+const ChatListItem = ({ chat }) => {
     const navigation = useNavigation();
+    const [user, setUser] = useState(null);
+    // const [chatRoom, setChatRoom] = useState(chat);
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            const authUser = await Auth.currentAuthenticatedUser();
+
+            // Loop through chat.users.items and find a user that is not us (Authenticated user)
+            const userItem = chat.users.items.find(
+                (item) => item.user.id !== authUser.attributes.sub
+            );
+            setUser(userItem?.user);
+        };
+
+        fetchUser();
+    }, []);
+
+    console.log(chat);
 
     return (
-        <Pressable onPress={() => navigation.navigate('Chat', {id: chat.id, name: chat.user.name})} style={styles.container}>
+        <Pressable onPress={() => navigation.navigate('Chat', { id: chat.id, name: user?.name })} style={styles.container}>
             <Image
-                source={{ uri: chat.user.image }}
+                source={{ uri: user?.image }}
                 style={styles.image}
             />
             <View style={styles.content}>
                 <View style={styles.row}>
-                    <Text numberOfLines={1} style={styles.name}>{chat.user.name}</Text>
-                    <Text style={styles.subTitle}>{dayjs(chat.lastMessage.createdAt).fromNow(true)}</Text>
+                    <Text numberOfLines={1} style={styles.name}>{user?.name}</Text>
+                    {chat.LastMessage && (
+                        <Text style={styles.subTitle}>
+                            {dayjs(chat.LastMessage?.createdAt).fromNow(true)}
+                        </Text>
+                    )}
                 </View>
-                <Text numberOfLines={2} style={styles.subTitle}>{chat.lastMessage.text} </Text>
-            </View> 
+                <Text numberOfLines={2} style={styles.subTitle}>{chat.LastMessage?.text} </Text>
+            </View>
         </Pressable>
     )
 }
 
 const styles = StyleSheet.create({
-    container:{
+    container: {
         flexDirection: 'row',
         marginHorizontal: 10,
         marginVertical: 5,
@@ -39,7 +63,7 @@ const styles = StyleSheet.create({
         borderRadius: 30,
         marginRight: 10
     },
-    content:{
+    content: {
         flex: 1,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: 'lightgray'
@@ -48,11 +72,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         marginBottom: 5
     },
-    name:{
+    name: {
         flex: 1,
         fontWeight: 'bold'
     },
-    subTitle:{
+    subTitle: {
         color: 'gray'
     }
 })

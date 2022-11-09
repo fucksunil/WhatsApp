@@ -1,25 +1,52 @@
 import { useState } from 'react';
-import { View, TextInput, StyleSheet } from 'react-native'
+import { TextInput, StyleSheet } from 'react-native'
 import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { API, graphqlOperation, Auth } from 'aws-amplify';
+import {createMessage, updateChatRoom} from '../../graphql/mutations'
 
 
-const InputBox = () => {
+const InputBox = ({chatroom}) => {
+    // console.log(chatroomID)
+    
+    const [text, setText] = useState('');
 
-    //state data
-    const [newMessage, setNewMessage] = useState('')
+    const onSend = async () => {
+        console.warn('Sending a new message : ', text)
 
-    const onSend = () => {
-        console.warn('Sending a new message : ', newMessage)
-        setNewMessage('')
+        const authUser = await Auth.currentAuthenticatedUser();
+
+        const newMessage = {
+            chatroomID: chatroom.id,
+            text,
+            userID: authUser.attributes.sub,
+        }
+
+        const newMessageData = await API.graphql(graphqlOperation(
+            createMessage, {input: newMessage}
+        ))
+
+        setText('')
+
+        //set the new message as LastMessage of the ChatRoom
+        await API.graphql(
+            graphqlOperation(updateChatRoom, {
+              input: {
+                _version: chatroom._version,
+                chatRoomLastMessageId: newMessageData.data.createMessage.id,
+                id: chatroom.id,
+              },
+            })
+          );
     }
+    
   return (
     <SafeAreaView edges={['bottom']} style={styles.container}>
         {/* {Icon} */}
         <AntDesign name='plus' size={24} color="royalblue" />
 
         {/* Text Input */}
-        <TextInput value={newMessage} onChangeText={setNewMessage} style={styles.input} placeholder='type your message...' />
+        <TextInput value={text} onChangeText={setText} style={styles.input} placeholder='type your message...' />
 
         {/* Icon */}
         <MaterialIcons onPress={onSend} style={styles.send} name="send" size={24} color="white" />
