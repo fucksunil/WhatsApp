@@ -79,6 +79,7 @@ const ChatScreen = () => {
     }
 
     // console.log(chatRoom.Messages.items);
+    // console.log(JSON.stringify(chatRoom));
 
     return (
         <KeyboardAvoidingView
